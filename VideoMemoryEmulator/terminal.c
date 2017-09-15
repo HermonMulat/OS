@@ -5,7 +5,7 @@
 
 #include "terminal.h"
 
-#define BUFFER_POSITION(ROW, COL) (ROW * VGA_WIDTH + COL)
+#define BUFFER_POSITION(ROW, COL) ((ROW) * VGA_WIDTH + (COL))
 
 static uint16_t terminal_buffer[VGA_HEIGHT * VGA_WIDTH];
 
@@ -19,25 +19,47 @@ uint16_t color = (BLACK << 4) | WHITE;
 void draw(void);
 
 void terminal_setcolor(uint8_t foreground, uint8_t background) {
-	// TODO: Your one-liner code here
+	color = (foreground | background << 4);
 }
 
 void move_cursor(void) {
 	move(position_row, position_col);
 }
 
-void terminal_write(char character) {
-	// TODO:
-	// This is stub code: just write everything in the first line, using a default color combination
-	// Your function is much richer than this (for reference, my implementation is 50-60 lines)
-	terminal_buffer[BUFFER_POSITION(position_row, position_col)] = character | (0x70 << 8);
-	position_col++;
+void write_chr(char chr){
+	if (chr == '\n' || chr == '\t'){
+		terminal_buffer[BUFFER_POSITION(position_row, position_col)] = ' ' | color << 8;
+	}
+	else{
+		terminal_buffer[BUFFER_POSITION(position_row, position_col)] = chr | color << 8;
+	}
+}
 
-	if(position_col >= VGA_WIDTH) {
+void terminal_write(char character) {
+	if (position_row < VGA_HEIGHT) write_chr(character);
+	position_col++;
+	if (character == '\t'){
+		position_col = ((position_col/8) + 1)*8;
+	}
+	if(position_col >= VGA_WIDTH || character == '\n') {
 		position_col = 0;
+		position_row++;
+	}
+	if (position_row >= VGA_HEIGHT){
+		position_row = VGA_HEIGHT-1;
+		for(int r = 0; r < VGA_HEIGHT-1; r++) {
+			for(int c = 0; c < VGA_WIDTH; c++) {
+				terminal_buffer[BUFFER_POSITION(r, c)] = terminal_buffer[BUFFER_POSITION((r+1), c)];
+			}
+		}
+		// clear the last row
+		uint16_t blank = ' ' | (color << 8);
+		for (int i = 0; i < VGA_WIDTH; i++){
+			terminal_buffer[BUFFER_POSITION((VGA_HEIGHT-1), i)] = blank;
+		}
+
 	}
 
-	// Keep those below
 	move_cursor();
 	draw();
 }
